@@ -1,0 +1,44 @@
+# Auto-detect text files and normalize line endings to LF
+* text=auto
+
+# Rust source files
+*.rs text diff=rust
+
+# Configuration files
+*.toml text
+*.json text
+*.yaml text
+*.yml text
+
+# Documentation
+*.md text
+*.txt text
+
+# Shell scripts
+*.sh text eol=lf
+
+# Ensure line ending consistency
+Cargo.lock text
+Cargo.toml text
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.wasm binary
+
+# Archives
+*.zip binary
+*.tar binary
+*.gz binary
+
+# Linguist language detection
+*.rs linguist-language=Rust
+*.toml linguist-language=TOML
+docs/** linguist-documentation
+examples_disabled/** linguist-vendored
+
+# Diff settings
+*.lock linguist-generated=false
