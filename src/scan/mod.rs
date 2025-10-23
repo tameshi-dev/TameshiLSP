@@ -10,8 +10,8 @@ pub mod messages;
 pub mod stats;
 
 use crate::{
-    proto::ScanResult as ProtoScanResult,
     deterministic_scanner::{DeterministicScanner, ScanScope},
+    proto::ScanResult as ProtoScanResult,
 };
 pub use errors::{ScanError, ScanResult as ScanErrorResult};
 pub use messages::{ProgressEvent, ScanRequest as InternalScanRequest};
@@ -38,7 +38,9 @@ pub enum ScanRequest {
         progress_token: Option<String>,
         response_tx: std::sync::mpsc::Sender<Result<ProtoScanResult>>,
     },
-    Cancel { token: String },
+    Cancel {
+        token: String,
+    },
     CancelAll,
     RefreshResults {
         response_tx: std::sync::mpsc::Sender<Result<()>>,

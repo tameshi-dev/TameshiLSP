@@ -100,10 +100,12 @@ pub enum LLMScanRequest {
         progress_token: Option<String>,
         response_tx: mpsc::UnboundedSender<Result<ScanResult>>,
     },
-    Cancel { token: String },
+    Cancel {
+        token: String,
+    },
     CancelAll,
     UpdateConfig {
-        config: crate::config::TameshiConfig,
+        config: Box<crate::config::TameshiConfig>,
         response_tx: mpsc::UnboundedSender<Result<()>>,
     },
     GetScanners {
@@ -308,7 +310,7 @@ impl LLMScanManager {
                 config,
                 response_tx,
             } => {
-                let result = self.update_config(config);
+                let result = self.update_config(*config);
                 let _ = response_tx.send(result);
             }
 
@@ -590,6 +592,7 @@ impl LLMScanManager {
         }
     }
 
+    #[allow(clippy::await_holding_lock)]
     async fn cancel_all_operations(&self) {
         info!("Cancelling all LLM scan operations");
 
@@ -603,6 +606,7 @@ impl LLMScanManager {
         }
         pending.clear();
 
+        drop(pending);
         sleep(Duration::from_millis(100)).await;
     }
 
@@ -643,14 +647,10 @@ impl LLMScanManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::mpsc;
-    use tempfile::TempDir;
 
     #[tokio::test]
     async fn test_llm_scan_manager_creation() {
-
         let _config = crate::config::TameshiConfig::default();
-
     }
 
     #[test]

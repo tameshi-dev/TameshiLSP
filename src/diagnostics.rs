@@ -286,10 +286,10 @@ impl DiagnosticsMapper {
 
     pub fn clear_diagnostics_for_file(
         &self,
-        file_path: &PathBuf,
+        file_path: &Path,
     ) -> HashMap<PathBuf, Vec<Diagnostic>> {
         let mut result = HashMap::new();
-        result.insert(file_path.clone(), Vec::new());
+        result.insert(file_path.to_path_buf(), Vec::new());
         result
     }
 
@@ -762,3 +762,4 @@ impl DiagnosticStats {
         }
     }
 }
+use std::path::Path;

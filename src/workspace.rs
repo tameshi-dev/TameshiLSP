@@ -337,12 +337,10 @@ impl WorkspaceManager {
                 text_pos += part.len();
             } else if i == pattern_parts.len() - 1 {
                 return text[text_pos..].ends_with(part);
+            } else if let Some(pos) = text[text_pos..].find(part) {
+                text_pos += pos + part.len();
             } else {
-                if let Some(pos) = text[text_pos..].find(part) {
-                    text_pos += pos + part.len();
-                } else {
-                    return false;
-                }
+                return false;
             }
         }
 
@@ -369,7 +367,6 @@ mod tests {
                 uri: Url::parse("file:///test/workspace").unwrap(),
                 name: "test".to_string(),
             }]),
-            root_uri: Some(Url::parse("file:///test/workspace").unwrap()),
             ..Default::default()
         }
     }
@@ -614,8 +611,10 @@ mod tests {
     #[test]
     fn test_determine_workspace_root_fallbacks() {
         let init_params = InitializeParams {
-            workspace_folders: None,
-            root_uri: Some(Url::parse("file:///root/uri").unwrap()),
+            workspace_folders: Some(vec![WorkspaceFolder {
+                uri: Url::parse("file:///root/uri").unwrap(),
+                name: "root".to_string(),
+            }]),
             ..Default::default()
         };
 

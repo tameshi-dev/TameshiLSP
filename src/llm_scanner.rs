@@ -211,7 +211,7 @@ impl LLMScanner {
                     let scanner = Arc::clone(scanner); // Clone the Arc to avoid borrowing issues
                     let file_path = file_path.to_path_buf();
                     let content = content.clone();
-                    let timeout = timeout;
+                    // removed redundant redefinition of `timeout`
                     let scanner_name = scanner.name();
                     let use_ir = self.use_ir_scanning;
 
@@ -282,8 +282,8 @@ impl LLMScanner {
                                 let _ = writeln!(file, "[LSP ADAPTER]    IR scanning: {}", use_ir);
                             }
 
-                            let scan_result = tokio::task::spawn_blocking(move || {
-                                match scanner.scan(&context) {
+                            let scan_result =
+                                tokio::task::spawn_blocking(move || match scanner.scan(&context) {
                                     Ok(results) => {
                                         if let Ok(mut file) = std::fs::OpenOptions::new()
                                             .create(true)
@@ -316,9 +316,8 @@ impl LLMScanner {
                                         }
                                         Vec::new()
                                     }
-                                }
-                            })
-                            .await;
+                                })
+                                .await;
 
                             match scan_result {
                                 Ok(results) => results,

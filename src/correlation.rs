@@ -377,12 +377,10 @@ impl CorrelationService {
 
         if norm1 == norm2 {
             0.8 // High similarity if base types match
+        } else if are_related_types(&norm1, &norm2) {
+            0.5
         } else {
-            if are_related_types(&norm1, &norm2) {
-                0.5
-            } else {
-                0.0
-            }
+            0.0
         }
     }
 

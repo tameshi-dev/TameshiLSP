@@ -590,29 +590,26 @@ impl TameshiLspServer {
         let connection_sender = connection.sender.clone();
         let findings_store = self.findings_store.clone();
 
-        std::thread::spawn(move || {
-            match response_rx.recv() {
-                Ok(Ok(())) => {
-                    findings_store.clear();
+        std::thread::spawn(move || match response_rx.recv() {
+            Ok(Ok(())) => {
+                findings_store.clear();
 
-                    let response = Response::new_ok(
-                        req_id,
-                        serde_json::json!({
-                            "success": true,
-                            "message": "Results refreshed successfully"
-                        }),
-                    );
-                    let _ = connection_sender.send(response.into());
-                }
-                Ok(Err(e)) => {
-                    let response = Response::new_err(req_id, -32603, e.to_string());
-                    let _ = connection_sender.send(response.into());
-                }
-                Err(e) => {
-                    let response =
-                        Response::new_err(req_id, -32603, format!("Internal error: {}", e));
-                    let _ = connection_sender.send(response.into());
-                }
+                let response = Response::new_ok(
+                    req_id,
+                    serde_json::json!({
+                        "success": true,
+                        "message": "Results refreshed successfully"
+                    }),
+                );
+                let _ = connection_sender.send(response.into());
+            }
+            Ok(Err(e)) => {
+                let response = Response::new_err(req_id, -32603, e.to_string());
+                let _ = connection_sender.send(response.into());
+            }
+            Err(e) => {
+                let response = Response::new_err(req_id, -32603, format!("Internal error: {}", e));
+                let _ = connection_sender.send(response.into());
             }
         });
 
@@ -1211,61 +1208,58 @@ impl TameshiLspServer {
         let workspace_manager = self.workspace_manager.clone();
         let scan_epoch = Arc::clone(&self.scan_epoch);
 
-        std::thread::spawn(move || {
-            match response_rx.blocking_recv() {
-                Some(Ok(scan_result)) => {
-                    findings_store.store_scan_result(scan_result.clone());
+        std::thread::spawn(move || match response_rx.blocking_recv() {
+            Some(Ok(scan_result)) => {
+                findings_store.store_scan_result(scan_result.clone());
 
-                    if let Err(e) = Self::publish_diagnostics_for_scan_result(
-                        &connection_sender,
-                        &diagnostics_mapper,
-                        &scan_result,
-                        &workspace_manager,
-                        &scan_epoch,
-                    ) {
-                        error!("Failed to publish diagnostics: {}", e);
-                    }
+                if let Err(e) = Self::publish_diagnostics_for_scan_result(
+                    &connection_sender,
+                    &diagnostics_mapper,
+                    &scan_result,
+                    &workspace_manager,
+                    &scan_epoch,
+                ) {
+                    error!("Failed to publish diagnostics: {}", e);
+                }
 
-                    if let Err(e) =
-                        Self::send_progress_end_static(&connection_sender, &progress_token)
-                    {
-                        error!("Failed to send completion notification: {}", e);
-                    }
+                if let Err(e) = Self::send_progress_end_static(&connection_sender, &progress_token)
+                {
+                    error!("Failed to send completion notification: {}", e);
+                }
 
-                    let response = Response::new_ok(
-                        req_id,
-                        serde_json::json!({
-                            "success": true,
-                            "message": "LLM workspace scan completed successfully",
-                            "result": {
-                                "findings_count": scan_result.findings.len(),
-                                "scan_time_ms": scan_result.metadata.duration_ms,
-                                "workspace_root": workspace_root.to_string_lossy(),
-                            }
-                        }),
-                    );
-                    let _ = connection_sender.send(response.into());
-                }
-                Some(Err(e)) => {
-                    let response = Response::new_ok(
-                        req_id,
-                        serde_json::json!({
-                            "success": false,
-                            "message": format!("LLM workspace scan failed: {}", e)
-                        }),
-                    );
-                    let _ = connection_sender.send(response.into());
-                }
-                None => {
-                    let response = Response::new_ok(
-                        req_id,
-                        serde_json::json!({
-                            "success": false,
-                            "message": "LLM workspace scan channel disconnected"
-                        }),
-                    );
-                    let _ = connection_sender.send(response.into());
-                }
+                let response = Response::new_ok(
+                    req_id,
+                    serde_json::json!({
+                        "success": true,
+                        "message": "LLM workspace scan completed successfully",
+                        "result": {
+                            "findings_count": scan_result.findings.len(),
+                            "scan_time_ms": scan_result.metadata.duration_ms,
+                            "workspace_root": workspace_root.to_string_lossy(),
+                        }
+                    }),
+                );
+                let _ = connection_sender.send(response.into());
+            }
+            Some(Err(e)) => {
+                let response = Response::new_ok(
+                    req_id,
+                    serde_json::json!({
+                        "success": false,
+                        "message": format!("LLM workspace scan failed: {}", e)
+                    }),
+                );
+                let _ = connection_sender.send(response.into());
+            }
+            None => {
+                let response = Response::new_ok(
+                    req_id,
+                    serde_json::json!({
+                        "success": false,
+                        "message": "LLM workspace scan channel disconnected"
+                    }),
+                );
+                let _ = connection_sender.send(response.into());
             }
         });
 
@@ -1364,7 +1358,7 @@ impl TameshiLspServer {
         let (response_tx, mut response_rx) = unbounded_channel();
 
         let request = LLMScanRequest::UpdateConfig {
-            config: new_config,
+            config: Box::new(new_config),
             response_tx,
         };
 
@@ -1437,9 +1431,7 @@ impl TameshiLspServer {
         let token = arguments
             .and_then(|args| args.first())
             .and_then(|v| v.as_str())
-            .ok_or({
-                "all"
-            });
+             .ok_or("all");
 
         let request = if token == Ok("all") {
             LLMScanRequest::CancelAll

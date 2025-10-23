@@ -690,12 +690,10 @@ impl TameshiConfig {
                 text_pos += part.len();
             } else if i == pattern_parts.len() - 1 {
                 return text[text_pos..].ends_with(part);
+            } else if let Some(pos) = text[text_pos..].find(part) {
+                text_pos += pos + part.len();
             } else {
-                if let Some(pos) = text[text_pos..].find(part) {
-                    text_pos += pos + part.len();
-                } else {
-                    return false;
-                }
+                return false;
             }
         }
 

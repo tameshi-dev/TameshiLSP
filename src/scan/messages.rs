@@ -3,8 +3,8 @@
 //! Defines typed messages for scan requests and responses instead of generic
 //! serde_json::Value, enabling compile-time validation of channel communication.
 
-use crate::proto::ScanResult;
 use crate::deterministic_scanner::ScanScope;
+use crate::proto::ScanResult;
 use std::path::PathBuf;
 use tokio::sync::oneshot;
 use uuid::Uuid;

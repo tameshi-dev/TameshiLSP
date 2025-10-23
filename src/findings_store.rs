@@ -241,9 +241,7 @@ impl FindingsStore {
         let ignored = self.ignored_findings.read().unwrap();
 
         let candidate_ids: Vec<Uuid> = match scope {
-            FindingsScope::Workspace => {
-                self.findings.iter().map(|entry| *entry.key()).collect()
-            }
+            FindingsScope::Workspace => self.findings.iter().map(|entry| *entry.key()).collect(),
             FindingsScope::File { path } => {
                 let path_buf = PathBuf::from(path);
                 index

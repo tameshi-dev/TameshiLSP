@@ -274,7 +274,6 @@ pub struct ScanError {
     pub details: Option<serde_json::Value>,
 }
 
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GetFindingsRequest {
     pub scope: FindingsScope,
@@ -312,7 +311,6 @@ pub struct GetFindingDetailsResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub extended_context: Option<serde_json::Value>,
 }
-
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ScanProgressNotification {
@@ -495,7 +493,7 @@ pub struct EvidenceLocation {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use lsp_types::{DiagnosticSeverity, Position, Range};
+    use lsp_types::{DiagnosticSeverity, Position};
 
     #[test]
     fn test_severity_ordering() {

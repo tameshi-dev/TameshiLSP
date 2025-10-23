@@ -47,12 +47,16 @@ impl Default for ScannerConfig {
 
 #[derive(Debug, Clone)]
 pub enum ScanScope {
-    Workspace { root: PathBuf },
+    Workspace {
+        root: PathBuf,
+    },
     File {
         path: PathBuf,
         content: Option<String>,
     },
-    Files { paths: Vec<PathBuf> },
+    Files {
+        paths: Vec<PathBuf>,
+    },
 }
 
 #[derive(Debug)]
@@ -366,8 +370,6 @@ impl DeterministicScanner {
                 "source_timestamp" => factory.create_source_timestamp_scanner(),
                 "source_front_running" => factory.create_source_front_running_scanner(),
                 "source_overflow" => factory.create_source_overflow_scanner(),
-                "cranelift_ir" => factory.create_cranelift_ir_scanner(),
-                "cranelift_reentrancy" => factory.create_cranelift_ir_reentrancy_scanner(),
                 "hybrid_reentrancy" => factory.create_hybrid_reentrancy_scanner(),
                 "hybrid_access_control" => factory.create_hybrid_access_control_scanner(),
                 _ => {
