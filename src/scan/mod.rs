@@ -53,6 +53,14 @@ pub struct ScanManager {
     max_concurrent: usize,
 }
 
+struct ScanTaskContext {
+    scanner: Arc<DeterministicScanner>,
+    concurrency_limit: Arc<Semaphore>,
+    stats: ScanStats,
+    progress_tx: broadcast::Sender<ProgressEvent>,
+    shutdown: CancellationToken,
+}
+
 impl ScanManager {
     pub fn new() -> Result<Self> {
         Ok(Self {
@@ -91,36 +99,38 @@ impl ScanManager {
                     }
                     Ok(ScanRequest::ScanWorkspace {
                         root,
-                        progress_token,
+                        progress_token: _,
                         response_tx,
                     }) => {
                         Self::spawn_scan_task(
                             &mut active_tasks,
-                            Arc::clone(&scanner),
-                            Arc::clone(&concurrency_limit),
-                            stats.clone(),
-                            progress_tx.clone(),
-                            shutdown_token.clone(),
+                            ScanTaskContext {
+                                scanner: Arc::clone(&scanner),
+                                concurrency_limit: Arc::clone(&concurrency_limit),
+                                stats: stats.clone(),
+                                progress_tx: progress_tx.clone(),
+                                shutdown: shutdown_token.clone(),
+                            },
                             ScanScope::Workspace { root },
-                            progress_token,
                             response_tx,
                         );
                     }
                     Ok(ScanRequest::ScanFile {
                         path,
                         content,
-                        progress_token,
+                        progress_token: _,
                         response_tx,
                     }) => {
                         Self::spawn_scan_task(
                             &mut active_tasks,
-                            Arc::clone(&scanner),
-                            Arc::clone(&concurrency_limit),
-                            stats.clone(),
-                            progress_tx.clone(),
-                            shutdown_token.clone(),
+                            ScanTaskContext {
+                                scanner: Arc::clone(&scanner),
+                                concurrency_limit: Arc::clone(&concurrency_limit),
+                                stats: stats.clone(),
+                                progress_tx: progress_tx.clone(),
+                                shutdown: shutdown_token.clone(),
+                            },
                             ScanScope::File { path, content },
-                            progress_token,
                             response_tx,
                         );
                     }
@@ -152,35 +162,30 @@ impl ScanManager {
 
     fn spawn_scan_task(
         tasks: &mut JoinSet<()>,
-        scanner: Arc<DeterministicScanner>,
-        concurrency_limit: Arc<Semaphore>,
-        stats: ScanStats,
-        progress_tx: broadcast::Sender<ProgressEvent>,
-        shutdown: CancellationToken,
+        ctx: ScanTaskContext,
         scope: ScanScope,
-        _progress_token: Option<String>,
         response_tx: std::sync::mpsc::Sender<Result<ProtoScanResult>>,
     ) {
         let operation_id = Uuid::new_v4();
 
         tasks.spawn(async move {
-            let _permit = concurrency_limit.acquire().await.unwrap();
+            let _permit = ctx.concurrency_limit.acquire().await.unwrap();
 
-            stats.scan_started();
+            ctx.stats.scan_started();
             let start = std::time::Instant::now();
 
-            let _ = progress_tx.send(ProgressEvent::Started {
+            let _ = ctx.progress_tx.send(ProgressEvent::Started {
                 operation_id,
                 scope: (&scope).into(),
             });
 
             tokio::select! {
-                result = scanner.scan_async(&scope) => {
+                result = ctx.scanner.scan_async(&scope) => {
                     let duration = start.elapsed();
                     match result {
                         Ok(scan_result) => {
-                            stats.scan_completed(duration);
-                            let _ = progress_tx.send(ProgressEvent::Completed {
+                            ctx.stats.scan_completed(duration);
+                            let _ = ctx.progress_tx.send(ProgressEvent::Completed {
                                 operation_id,
                                 total_findings: scan_result.findings.len(),
                                 duration_ms: duration.as_millis() as u64,
@@ -188,8 +193,8 @@ impl ScanManager {
                             let _ = response_tx.send(Ok(scan_result));
                         }
                         Err(e) => {
-                            stats.scan_failed();
-                            let _ = progress_tx.send(ProgressEvent::Failed {
+                            ctx.stats.scan_failed();
+                            let _ = ctx.progress_tx.send(ProgressEvent::Failed {
                                 operation_id,
                                 error: e.to_string(),
                             });
@@ -197,8 +202,8 @@ impl ScanManager {
                         }
                     }
                 }
-                _ = shutdown.cancelled() => {
-                    stats.scan_failed();
+                _ = ctx.shutdown.cancelled() => {
+                    ctx.stats.scan_failed();
                     let _ = response_tx.send(Err(anyhow::anyhow!("Scan cancelled")));
                 }
             }
