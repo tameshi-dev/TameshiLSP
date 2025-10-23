@@ -2287,6 +2287,8 @@ dependencies = [
 [[package]]
 name = "tameshi-scanners"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3ca347566cc789a508d1aaddd9c166ca17b2ddb899928cab83b6c2b93f8158c9"
 dependencies = [
  "anyhow",
  "async-openai",
