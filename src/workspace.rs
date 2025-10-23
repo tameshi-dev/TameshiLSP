@@ -362,9 +362,14 @@ mod tests {
     use std::path::PathBuf;
 
     fn create_test_init_params() -> InitializeParams {
+        #[cfg(windows)]
+        let workspace_uri = Url::parse("file:///C:/test/workspace").unwrap();
+        #[cfg(not(windows))]
+        let workspace_uri = Url::parse("file:///test/workspace").unwrap();
+
         InitializeParams {
             workspace_folders: Some(vec![WorkspaceFolder {
-                uri: Url::parse("file:///test/workspace").unwrap(),
+                uri: workspace_uri,
                 name: "test".to_string(),
             }]),
             ..Default::default()
@@ -372,8 +377,13 @@ mod tests {
     }
 
     fn create_test_document() -> TextDocumentItem {
+        #[cfg(windows)]
+        let doc_uri = Url::parse("file:///C:/test/workspace/test.sol").unwrap();
+        #[cfg(not(windows))]
+        let doc_uri = Url::parse("file:///test/workspace/test.sol").unwrap();
+
         TextDocumentItem {
-            uri: Url::parse("file:///test/workspace/test.sol").unwrap(),
+            uri: doc_uri,
             language_id: "solidity".to_string(),
             version: 1,
             text: "contract Test {}".to_string(),
@@ -610,9 +620,14 @@ mod tests {
 
     #[test]
     fn test_determine_workspace_root_fallbacks() {
+        #[cfg(windows)]
+        let root_uri = Url::parse("file:///C:/root/uri").unwrap();
+        #[cfg(not(windows))]
+        let root_uri = Url::parse("file:///root/uri").unwrap();
+
         let init_params = InitializeParams {
             workspace_folders: Some(vec![WorkspaceFolder {
-                uri: Url::parse("file:///root/uri").unwrap(),
+                uri: root_uri,
                 name: "root".to_string(),
             }]),
             ..Default::default()

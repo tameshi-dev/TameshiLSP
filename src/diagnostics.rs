@@ -436,8 +436,13 @@ mod tests {
         let mapper = DiagnosticsMapper::new();
         let mut finding = create_test_finding();
 
+        #[cfg(windows)]
+        let other_file = "C:\\tmp\\other.sol".to_string();
+        #[cfg(not(windows))]
+        let other_file = "/tmp/other.sol".to_string();
+
         finding.locations.push(Location {
-            file: "/tmp/other.sol".to_string(), // Use absolute path
+            file: other_file,
             line: 5,
             column: 10,
             end_line: Some(5),
