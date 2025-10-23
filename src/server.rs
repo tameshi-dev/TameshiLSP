@@ -1431,7 +1431,7 @@ impl TameshiLspServer {
         let token = arguments
             .and_then(|args| args.first())
             .and_then(|v| v.as_str())
-             .ok_or("all");
+            .ok_or("all");
 
         let request = if token == Ok("all") {
             LLMScanRequest::CancelAll
