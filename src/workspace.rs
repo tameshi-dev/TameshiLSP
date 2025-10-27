@@ -302,8 +302,9 @@ impl WorkspaceManager {
         if pattern.contains("**") {
             if pattern.starts_with("**/") && pattern.ends_with("/**") {
                 let middle = &pattern[3..pattern.len() - 3];
-                let search_pattern = format!("/{}/", middle);
-                return path.contains(&search_pattern) || path.ends_with(&format!("/{}", middle));
+                return path.starts_with(&format!("{}/", middle))
+                    || path.contains(&format!("/{}/", middle))
+                    || path.ends_with(&format!("/{}", middle));
             }
 
             if let Some(suffix) = pattern.strip_prefix("**/") {
