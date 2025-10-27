@@ -59,15 +59,27 @@ impl DiagnosticsMapper {
                 continue;
             }
 
-            let primary_location = &finding.locations[0];
-            let file_path = PathBuf::from(&primary_location.file);
-
-            let diagnostic = self.finding_to_diagnostic(finding)?;
-
-            diagnostics_by_file
-                .entry(file_path)
-                .or_default()
-                .push(diagnostic);
+            // If finding has multiple locations, create a diagnostic for each location
+            // This ensures all locations are prominently highlighted in the editor
+            if finding.locations.len() > 1 {
+                for (idx, location) in finding.locations.iter().enumerate() {
+                    let file_path = PathBuf::from(&location.file);
+                    let diagnostic = self.finding_to_diagnostic_for_location(finding, idx)?;
+                    diagnostics_by_file
+                        .entry(file_path)
+                        .or_default()
+                        .push(diagnostic);
+                }
+            } else {
+                // Single location - use original behavior
+                let primary_location = &finding.locations[0];
+                let file_path = PathBuf::from(&primary_location.file);
+                let diagnostic = self.finding_to_diagnostic(finding)?;
+                diagnostics_by_file
+                    .entry(file_path)
+                    .or_default()
+                    .push(diagnostic);
+            }
         }
 
         debug!(
@@ -77,6 +89,138 @@ impl DiagnosticsMapper {
         );
 
         Ok(diagnostics_by_file)
+    }
+
+    /// Create a diagnostic for a specific location index in a multi-location finding
+    pub fn finding_to_diagnostic_for_location(
+        &self,
+        finding: &Finding,
+        location_idx: usize,
+    ) -> Result<Diagnostic> {
+        if location_idx >= finding.locations.len() {
+            return Err(anyhow::anyhow!(
+                "Location index {} out of bounds for finding with {} locations",
+                location_idx,
+                finding.locations.len()
+            ));
+        }
+
+        let primary_location = &finding.locations[location_idx];
+        let range = primary_location.to_lsp_range();
+
+        let severity = Some(finding.severity.to_lsp_severity());
+
+        let analysis_prefix = if let Some(ref metadata) = finding.metadata {
+            match metadata.analysis_type {
+                Some(crate::proto::AnalysisType::LLM) => "[AI] ",
+                Some(crate::proto::AnalysisType::Hybrid) => "[Hybrid] ",
+                _ => "",
+            }
+        } else {
+            ""
+        };
+
+        let correlation_suffix = if let Some(ref metadata) = finding.metadata {
+            if !metadata.correlations.is_empty() {
+                format!(" (✓ {} correlated)", metadata.correlations.len())
+            } else {
+                String::new()
+            }
+        } else {
+            String::new()
+        };
+
+        // Add location number if multiple locations
+        let location_prefix = if finding.locations.len() > 1 {
+            format!("[{}/{}] ", location_idx + 1, finding.locations.len())
+        } else {
+            String::new()
+        };
+
+        let base_message = if finding.title.len() > 100 {
+            format!(
+                "{}: {}...",
+                finding.title,
+                &finding.description[..97.min(finding.description.len())]
+            )
+        } else {
+            format!("{}: {}", finding.title, finding.description)
+        };
+
+        let message = format!(
+            "{}{}{}{}",
+            analysis_prefix, location_prefix, base_message, correlation_suffix
+        );
+
+        let code = Some(NumberOrString::String(finding.diagnostic_code()));
+
+        let code_description = if self.include_code_descriptions {
+            self.create_code_description(finding)
+        } else {
+            None
+        };
+
+        // Create related information for all OTHER locations (not the current one)
+        let related_information = if finding.locations.len() > 1 {
+            let mut related_info = Vec::new();
+            for (idx, location) in finding.locations.iter().enumerate() {
+                if idx != location_idx {
+                    if let Ok(related) = self.location_to_related_info(location, finding) {
+                        related_info.push(related);
+                    }
+                }
+            }
+            if related_info.is_empty() {
+                None
+            } else {
+                Some(related_info)
+            }
+        } else {
+            None
+        };
+
+        let tags = self.create_diagnostic_tags(finding);
+
+        let mut data_obj = serde_json::json!({
+            "finding_id": finding.id,
+            "scanner_id": finding.scanner_id,
+            "finding_type": finding.finding_type,
+            "confidence": finding.confidence,
+            "confidence_score": finding.confidence_score,
+            "location_index": location_idx,
+            "total_locations": finding.locations.len()
+        });
+
+        if let Some(ref metadata) = finding.metadata {
+            if let Some(ref analysis_type) = metadata.analysis_type {
+                data_obj["analysis_type"] = serde_json::json!(analysis_type);
+            }
+            if !metadata.correlations.is_empty() {
+                data_obj["correlation_count"] = serde_json::json!(metadata.correlations.len());
+                data_obj["correlated_findings"] = serde_json::json!(metadata
+                    .correlations
+                    .iter()
+                    .map(|c| c.related_finding_id.clone())
+                    .collect::<Vec<_>>());
+            }
+            if let Some(ref provenance) = metadata.provenance {
+                data_obj["validation_status"] = serde_json::json!(provenance.validation_status);
+            }
+        }
+
+        let data = Some(data_obj);
+
+        Ok(Diagnostic {
+            range,
+            severity,
+            code,
+            code_description,
+            source: Some("tameshi".to_string()),
+            message,
+            related_information,
+            tags,
+            data,
+        })
     }
 
     pub fn finding_to_diagnostic(&self, finding: &Finding) -> Result<Diagnostic> {

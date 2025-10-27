@@ -308,6 +308,7 @@ impl DeterministicScanner {
         let mut engine = tameshi_scanners::ScanningEngine::new(config);
 
         engine = engine
+            // IR-based scanners
             .add_scanner(tameshi_scanners::IRReentrancyScanner::new())
             .add_scanner(tameshi_scanners::IRAccessControlScanner::new())
             .add_scanner(tameshi_scanners::IRUncheckedReturnScanner::new())
@@ -318,7 +319,22 @@ impl DeterministicScanner {
             .add_scanner(tameshi_scanners::IRDoSVulnerabilityScanner::new())
             .add_scanner(tameshi_scanners::IRPriceManipulationScanner::new())
             .add_scanner(tameshi_scanners::IRCrossFunctionReentrancyScanner::new())
-            .add_scanner(tameshi_scanners::UncheckedArithmeticScanner::new());
+            // Source-based scanners
+            .add_scanner(tameshi_scanners::SourceMissingAccessControlScanner::new())
+            .add_scanner(tameshi_scanners::SourceAccessControlScanner::new())
+            .add_scanner(tameshi_scanners::SourceClassicReentrancyScanner::new())
+            .add_scanner(tameshi_scanners::SourceLoopReentrancyScanner::new())
+            .add_scanner(tameshi_scanners::SourceDangerousFunctionsScanner::new())
+            .add_scanner(tameshi_scanners::SourceDelegatecallScanner::new())
+            .add_scanner(tameshi_scanners::SourceDoSVulnerabilitiesScanner::new())
+            .add_scanner(tameshi_scanners::SourceGasLimitDoSScanner::new())
+            .add_scanner(tameshi_scanners::SourceIntegerOverflowScanner::new())
+            .add_scanner(tameshi_scanners::SourceTimeVulnerabilitiesScanner::new())
+            .add_scanner(tameshi_scanners::SourceUncheckedOverflowScanner::new())
+            .add_scanner(tameshi_scanners::SourceUncheckedReturnScanner::new())
+            .add_scanner(tameshi_scanners::UncheckedArithmeticScanner::new())
+            .add_scanner(tameshi_scanners::SimpleTimestampScanner::new())
+            .add_scanner(tameshi_scanners::ASTDoSVulnerabilitiesScanner::new());
 
         #[cfg(feature = "llm")]
         {
