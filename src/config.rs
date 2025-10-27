@@ -709,6 +709,8 @@ impl Default for TameshiConfig {
                 include_patterns: vec!["**/*.sol".to_string()],
                 exclude_patterns: vec![
                     "**/node_modules/**".to_string(),
+                    "**/lib/**".to_string(),
+                    "**/out/**".to_string(),
                     "**/build/**".to_string(),
                     "**/dist/**".to_string(),
                     "**/.git/**".to_string(),

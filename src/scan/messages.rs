@@ -14,6 +14,7 @@ pub struct ScanRequest {
     pub scope: ScanScope,
     pub progress_token: Option<String>,
     pub response_tx: oneshot::Sender<super::errors::ScanResult<ScanResult>>,
+    pub exclude_patterns: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -56,7 +57,7 @@ impl From<&ScanScope> for ScanScopeInfo {
         match scope {
             ScanScope::File { path, .. } => ScanScopeInfo::File { path: path.clone() },
             ScanScope::Files { paths } => ScanScopeInfo::Files { count: paths.len() },
-            ScanScope::Workspace { root } => ScanScopeInfo::Workspace { path: root.clone() },
+            ScanScope::Workspace { root, .. } => ScanScopeInfo::Workspace { path: root.clone() },
         }
     }
 }

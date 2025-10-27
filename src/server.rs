@@ -54,7 +54,11 @@ impl TameshiLspServer {
         scan_tx: mpsc::Sender<ScanRequest>,
         config: TameshiConfig,
     ) -> Result<Self> {
-        let workspace_manager = WorkspaceManager::new(init_params)?;
+        let workspace_manager = WorkspaceManager::new(
+            init_params,
+            config.scan.include_patterns.clone(),
+            config.scan.exclude_patterns.clone(),
+        )?;
         let findings_store = FindingsStore::new();
         let diagnostics_mapper = DiagnosticsMapper::new();
 
@@ -251,6 +255,7 @@ impl TameshiLspServer {
                 root: file_path,
                 progress_token: Some(progress_token.clone()),
                 response_tx,
+                exclude_patterns: self.config.scan.exclude_patterns.clone(),
             }
         };
 
@@ -429,6 +434,7 @@ impl TameshiLspServer {
             root: workspace_root,
             progress_token: Some(progress_token.clone()),
             response_tx,
+            exclude_patterns: self.config.scan.exclude_patterns.clone(),
         };
 
         self.scan_tx.send(scan_request)?;
@@ -731,6 +737,10 @@ impl TameshiLspServer {
 
         debug!("Document opened: {}", params.text_document.uri);
 
+        if self.workspace_manager.should_exclude_file(&params.text_document.uri) {
+            return Ok(());
+        }
+
         self.workspace_manager.add_document(params.text_document)?;
 
         Ok(())
@@ -820,6 +830,7 @@ impl TameshiLspServer {
                             root: workspace_root,
                             progress_token: None,
                             response_tx,
+                            exclude_patterns: self.config.scan.exclude_patterns.clone(),
                         };
 
                         self.scan_tx.send(scan_request)?;

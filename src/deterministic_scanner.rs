@@ -49,6 +49,7 @@ impl Default for ScannerConfig {
 pub enum ScanScope {
     Workspace {
         root: PathBuf,
+        exclude_patterns: Vec<String>,
     },
     File {
         path: PathBuf,
@@ -63,6 +64,7 @@ pub enum ScanScope {
 pub struct ScanRequest {
     pub scope: ScanScope,
     pub cancellation_token: Arc<AtomicBool>,
+    pub exclude_patterns: Vec<String>,
 }
 
 #[derive(Debug)]
@@ -142,7 +144,7 @@ impl DeterministicScanner {
                     }
                 }
             }
-            ScanScope::Workspace { root } => match self.find_solidity_files(root) {
+            ScanScope::Workspace { root, exclude_patterns } => match self.find_solidity_files(root, exclude_patterns) {
                 Ok(files) => {
                     info!("Found {} Solidity files in workspace", files.len());
                     for path in files {
@@ -202,6 +204,7 @@ impl DeterministicScanner {
         let request = ScanRequest {
             scope: scope.clone(),
             cancellation_token,
+            exclude_patterns: vec![],
         };
 
         match self.scan(request).await {
@@ -510,7 +513,7 @@ impl DeterministicScanner {
         }
     }
 
-    fn find_solidity_files(&self, root: &Path) -> Result<Vec<PathBuf>> {
+    fn find_solidity_files(&self, root: &Path, exclude_patterns: &[String]) -> Result<Vec<PathBuf>> {
         let mut files = Vec::new();
 
         for entry in WalkDir::new(root) {
@@ -518,10 +521,33 @@ impl DeterministicScanner {
             let path = entry.path();
 
             if path.is_file() && path.extension().is_some_and(|ext| ext == "sol") {
+                if self.should_exclude_path(path, exclude_patterns) {
+                    continue;
+                }
                 files.push(path.to_path_buf());
             }
         }
 
         Ok(files)
+    }
+
+    fn should_exclude_path(&self, path: &Path, exclude_patterns: &[String]) -> bool {
+        let path_str = path.to_string_lossy();
+        for pattern in exclude_patterns {
+            if self.matches_glob_pattern(&path_str, pattern) {
+                return true;
+            }
+        }
+        false
+    }
+
+    fn matches_glob_pattern(&self, path: &str, pattern: &str) -> bool {
+        if pattern.starts_with("**/") && pattern.ends_with("/**") {
+            let middle = &pattern[3..pattern.len() - 3];
+            let search_pattern = format!("/{}/", middle);
+            return path.contains(&search_pattern) || path.ends_with(&format!("/{}", middle));
+        }
+
+        path.contains(&pattern.replace("**", "").replace("*", ""))
     }
 }

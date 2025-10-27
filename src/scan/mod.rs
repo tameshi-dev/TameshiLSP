@@ -31,6 +31,7 @@ pub enum ScanRequest {
         root: PathBuf,
         progress_token: Option<String>,
         response_tx: std::sync::mpsc::Sender<Result<ProtoScanResult>>,
+        exclude_patterns: Vec<String>,
     },
     ScanFile {
         path: PathBuf,
@@ -101,6 +102,7 @@ impl ScanManager {
                         root,
                         progress_token: _,
                         response_tx,
+                        exclude_patterns,
                     }) => {
                         Self::spawn_scan_task(
                             &mut active_tasks,
@@ -111,7 +113,7 @@ impl ScanManager {
                                 progress_tx: progress_tx.clone(),
                                 shutdown: shutdown_token.clone(),
                             },
-                            ScanScope::Workspace { root },
+                            ScanScope::Workspace { root, exclude_patterns },
                             response_tx,
                         );
                     }

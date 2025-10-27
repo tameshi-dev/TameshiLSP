@@ -45,7 +45,11 @@ pub struct WorkspaceManager {
 }
 
 impl WorkspaceManager {
-    pub fn new(init_params: InitializeParams) -> Result<Self> {
+    pub fn new(
+        init_params: InitializeParams,
+        include_patterns: Vec<String>,
+        exclude_patterns: Vec<String>,
+    ) -> Result<Self> {
         let workspace_folders = init_params.workspace_folders.clone().unwrap_or_default();
         let workspace_root = Self::determine_workspace_root(&init_params)?;
 
@@ -57,18 +61,18 @@ impl WorkspaceManager {
             );
         }
 
+        info!(
+            "Using include patterns: {:?}, exclude patterns: {:?}",
+            include_patterns, exclude_patterns
+        );
+
         Ok(Self {
             workspace_folders: Arc::new(RwLock::new(workspace_folders)),
             open_documents: Arc::new(DashMap::new()),
             dirty_files: Arc::new(RwLock::new(HashSet::new())),
             workspace_root,
-            include_patterns: vec!["**/*.sol".to_string()], // Default to Solidity files
-            exclude_patterns: vec![
-                "**/node_modules/**".to_string(),
-                "**/build/**".to_string(),
-                "**/dist/**".to_string(),
-                "**/.git/**".to_string(),
-            ],
+            include_patterns,
+            exclude_patterns,
         })
     }
 
@@ -214,6 +218,13 @@ impl WorkspaceManager {
         &self.exclude_patterns
     }
 
+    pub fn should_exclude_file(&self, uri: &Url) -> bool {
+        if let Ok(path) = uri.to_file_path() {
+            return self.matches_exclude_patterns(&path);
+        }
+        false
+    }
+
     pub fn is_document_open(&self, uri: &Url) -> bool {
         self.open_documents.contains_key(uri)
     }
@@ -291,7 +302,8 @@ impl WorkspaceManager {
         if pattern.contains("**") {
             if pattern.starts_with("**/") && pattern.ends_with("/**") {
                 let middle = &pattern[3..pattern.len() - 3];
-                return path.contains(middle);
+                let search_pattern = format!("/{}/", middle);
+                return path.contains(&search_pattern) || path.ends_with(&format!("/{}", middle));
             }
 
             if let Some(suffix) = pattern.strip_prefix("**/") {
@@ -361,6 +373,19 @@ mod tests {
     use lsp_types::{InitializeParams, TextDocumentItem, Url, WorkspaceFolder};
     use std::path::PathBuf;
 
+    fn default_include_patterns() -> Vec<String> {
+        vec!["**/*.sol".to_string()]
+    }
+
+    fn default_exclude_patterns() -> Vec<String> {
+        vec![
+            "**/node_modules/**".to_string(),
+            "**/build/**".to_string(),
+            "**/dist/**".to_string(),
+            "**/.git/**".to_string(),
+        ]
+    }
+
     fn create_test_init_params() -> InitializeParams {
         #[cfg(windows)]
         let workspace_uri = Url::parse("file:///C:/test/workspace").unwrap();
@@ -393,7 +418,12 @@ mod tests {
     #[test]
     fn test_workspace_manager_new() {
         let init_params = create_test_init_params();
-        let manager = WorkspaceManager::new(init_params).unwrap();
+        let manager = WorkspaceManager::new(
+            init_params,
+            default_include_patterns(),
+            default_exclude_patterns(),
+        )
+        .unwrap();
 
         assert!(manager.get_workspace_root().is_some());
         assert_eq!(manager.get_workspace_folders().len(), 1);
@@ -403,7 +433,9 @@ mod tests {
     #[test]
     fn test_workspace_manager_new_no_workspace() {
         let init_params = InitializeParams::default();
-        let manager = WorkspaceManager::new(init_params).unwrap();
+        let manager =
+            WorkspaceManager::new(init_params, default_include_patterns(), default_exclude_patterns())
+                .unwrap();
 
         assert!(manager.get_workspace_root().is_none());
         assert_eq!(manager.get_workspace_folders().len(), 0);
@@ -412,7 +444,9 @@ mod tests {
     #[test]
     fn test_add_document() {
         let init_params = create_test_init_params();
-        let manager = WorkspaceManager::new(init_params).unwrap();
+        let manager =
+            WorkspaceManager::new(init_params, default_include_patterns(), default_exclude_patterns())
+                .unwrap();
         let document = create_test_document();
         let uri = document.uri.clone();
 
@@ -430,7 +464,9 @@ mod tests {
     #[test]
     fn test_update_document() {
         let init_params = create_test_init_params();
-        let manager = WorkspaceManager::new(init_params).unwrap();
+        let manager =
+            WorkspaceManager::new(init_params, default_include_patterns(), default_exclude_patterns())
+                .unwrap();
         let document = create_test_document();
         let uri = document.uri.clone();
 
@@ -450,7 +486,9 @@ mod tests {
     #[test]
     fn test_update_nonexistent_document() {
         let init_params = create_test_init_params();
-        let manager = WorkspaceManager::new(init_params).unwrap();
+        let manager =
+            WorkspaceManager::new(init_params, default_include_patterns(), default_exclude_patterns())
+                .unwrap();
         let uri = Url::parse("file:///test/nonexistent.sol").unwrap();
 
         let result = manager.update_document(&uri, 1, "content".to_string());
@@ -460,7 +498,9 @@ mod tests {
     #[test]
     fn test_remove_document() {
         let init_params = create_test_init_params();
-        let manager = WorkspaceManager::new(init_params).unwrap();
+        let manager =
+            WorkspaceManager::new(init_params, default_include_patterns(), default_exclude_patterns())
+                .unwrap();
         let document = create_test_document();
         let uri = document.uri.clone();
 
@@ -475,7 +515,9 @@ mod tests {
     #[test]
     fn test_mark_document_saved() {
         let init_params = create_test_init_params();
-        let manager = WorkspaceManager::new(init_params).unwrap();
+        let manager =
+            WorkspaceManager::new(init_params, default_include_patterns(), default_exclude_patterns())
+                .unwrap();
         let document = create_test_document();
         let uri = document.uri.clone();
 
@@ -494,7 +536,9 @@ mod tests {
     #[test]
     fn test_dirty_files_tracking() {
         let init_params = create_test_init_params();
-        let manager = WorkspaceManager::new(init_params).unwrap();
+        let manager =
+            WorkspaceManager::new(init_params, default_include_patterns(), default_exclude_patterns())
+                .unwrap();
         let path = PathBuf::from("/test/file.sol");
 
         assert_eq!(manager.get_dirty_files().len(), 0);
@@ -510,7 +554,9 @@ mod tests {
     #[test]
     fn test_update_workspace_folders() {
         let init_params = create_test_init_params();
-        let manager = WorkspaceManager::new(init_params).unwrap();
+        let manager =
+            WorkspaceManager::new(init_params, default_include_patterns(), default_exclude_patterns())
+                .unwrap();
 
         let new_folders = vec![
             WorkspaceFolder {
@@ -536,7 +582,9 @@ mod tests {
     #[test]
     fn test_include_exclude_patterns() {
         let init_params = create_test_init_params();
-        let mut manager = WorkspaceManager::new(init_params).unwrap();
+        let mut manager =
+            WorkspaceManager::new(init_params, default_include_patterns(), default_exclude_patterns())
+                .unwrap();
 
         assert_eq!(manager.get_include_patterns(), &["**/*.sol"]);
         assert!(manager
@@ -556,7 +604,9 @@ mod tests {
     #[test]
     fn test_workspace_stats() {
         let init_params = create_test_init_params();
-        let manager = WorkspaceManager::new(init_params).unwrap();
+        let manager =
+            WorkspaceManager::new(init_params, default_include_patterns(), default_exclude_patterns())
+                .unwrap();
 
         let stats = manager.get_stats();
         assert_eq!(stats.open_documents, 0);
@@ -570,6 +620,32 @@ mod tests {
         assert_eq!(stats.open_documents, 1);
         assert_eq!(stats.dirty_files, 1);
         assert_eq!(stats.workspace_folders, 1);
+    }
+
+    #[test]
+    fn test_custom_exclude_patterns_respected() {
+        let init_params = create_test_init_params();
+
+        let custom_exclude_patterns = vec![
+            "**/lib/**".to_string(),
+            "**/out/**".to_string(),
+            "**/node_modules/**".to_string(),
+        ];
+
+        let manager = WorkspaceManager::new(
+            init_params,
+            default_include_patterns(),
+            custom_exclude_patterns.clone(),
+        )
+        .unwrap();
+
+        assert!(manager.matches_exclude_patterns(Path::new("lib/forge-std/Test.sol")));
+        assert!(manager.matches_exclude_patterns(Path::new("contracts/lib/utils/Helper.sol")));
+        assert!(manager.matches_exclude_patterns(Path::new("out/Contract.sol")));
+        assert!(manager.matches_exclude_patterns(Path::new("node_modules/package/file.js")));
+
+        assert!(!manager.matches_exclude_patterns(Path::new("contracts/MyContract.sol")));
+        assert!(!manager.matches_exclude_patterns(Path::new("src/Token.sol")));
     }
 
     #[test]
@@ -593,7 +669,9 @@ mod tests {
     #[test]
     fn test_include_exclude_pattern_matching() {
         let init_params = create_test_init_params();
-        let mut manager = WorkspaceManager::new(init_params).unwrap();
+        let mut manager =
+            WorkspaceManager::new(init_params, default_include_patterns(), default_exclude_patterns())
+                .unwrap();
 
         manager.set_include_patterns(vec!["**/*.sol".to_string()]);
         manager.set_exclude_patterns(vec!["**/test/**".to_string()]);
@@ -612,7 +690,9 @@ mod tests {
     #[test]
     fn test_find_scannable_files_no_workspace() {
         let init_params = InitializeParams::default();
-        let manager = WorkspaceManager::new(init_params).unwrap();
+        let manager =
+            WorkspaceManager::new(init_params, default_include_patterns(), default_exclude_patterns())
+                .unwrap();
 
         let result = manager.find_scannable_files();
         assert!(result.is_err());
@@ -644,7 +724,9 @@ mod tests {
     #[test]
     fn test_multiple_documents() {
         let init_params = create_test_init_params();
-        let manager = WorkspaceManager::new(init_params).unwrap();
+        let manager =
+            WorkspaceManager::new(init_params, default_include_patterns(), default_exclude_patterns())
+                .unwrap();
 
         let doc1 = TextDocumentItem {
             uri: Url::parse("file:///test/contract1.sol").unwrap(),
