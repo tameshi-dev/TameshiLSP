@@ -258,6 +258,10 @@ impl DeterministicScanner {
         );
 
         let mut bundle = tameshi_scanners::RepresentationBundle::new();
+        let contract_name = contracts.first()
+            .map(|c| c.name.clone())
+            .unwrap_or_else(|| "Unknown".to_string());
+
         for contract in contracts {
             bundle = bundle.add(contract);
         }
@@ -266,8 +270,16 @@ impl DeterministicScanner {
         let config = tameshi_scanners::core::ScannerConfig::default();
         let engine = self.create_scanning_engine(config, &bundle)?;
 
+        let contract_info = tameshi_scanners::ContractInfo {
+            name: contract_name,
+            source_path: Some(path.to_string_lossy().to_string()),
+            source_code: None, // Will be provided separately
+            compiler_version: None,
+            optimization_enabled: false,
+        };
+
         let report = engine
-            .run(bundle)
+            .run_with_source(bundle, contract_info, &content)
             .with_context(|| format!("Failed to run scanners on {}", path.display()))?;
 
         info!(
@@ -305,7 +317,8 @@ impl DeterministicScanner {
             .add_scanner(tameshi_scanners::IRTimeVulnerabilityScanner::new())
             .add_scanner(tameshi_scanners::IRDoSVulnerabilityScanner::new())
             .add_scanner(tameshi_scanners::IRPriceManipulationScanner::new())
-            .add_scanner(tameshi_scanners::IRCrossFunctionReentrancyScanner::new());
+            .add_scanner(tameshi_scanners::IRCrossFunctionReentrancyScanner::new())
+            .add_scanner(tameshi_scanners::UncheckedArithmeticScanner::new());
 
         #[cfg(feature = "llm")]
         {

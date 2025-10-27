@@ -230,6 +230,7 @@ mod tests {
 
         let _req = ScanRequest::ScanWorkspace {
             root: PathBuf::from("/test"),
+            exclude_patterns: vec![],
             progress_token: None,
             response_tx: tx.clone(),
         };

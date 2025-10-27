@@ -711,6 +711,7 @@ impl Default for TameshiConfig {
                     "**/node_modules/**".to_string(),
                     "**/lib/**".to_string(),
                     "**/out/**".to_string(),
+                    "**/test/**".to_string(),
                     "**/build/**".to_string(),
                     "**/dist/**".to_string(),
                     "**/.git/**".to_string(),
