@@ -113,7 +113,10 @@ impl ScanManager {
                                 progress_tx: progress_tx.clone(),
                                 shutdown: shutdown_token.clone(),
                             },
-                            ScanScope::Workspace { root, exclude_patterns },
+                            ScanScope::Workspace {
+                                root,
+                                exclude_patterns,
+                            },
                             response_tx,
                         );
                     }

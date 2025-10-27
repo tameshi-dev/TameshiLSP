@@ -144,7 +144,10 @@ impl DeterministicScanner {
                     }
                 }
             }
-            ScanScope::Workspace { root, exclude_patterns } => match self.find_solidity_files(root, exclude_patterns) {
+            ScanScope::Workspace {
+                root,
+                exclude_patterns,
+            } => match self.find_solidity_files(root, exclude_patterns) {
                 Ok(files) => {
                     info!("Found {} Solidity files in workspace", files.len());
                     for path in files {
@@ -258,7 +261,8 @@ impl DeterministicScanner {
         );
 
         let mut bundle = tameshi_scanners::RepresentationBundle::new();
-        let contract_name = contracts.first()
+        let contract_name = contracts
+            .first()
             .map(|c| c.name.clone())
             .unwrap_or_else(|| "Unknown".to_string());
 
@@ -464,7 +468,11 @@ impl DeterministicScanner {
         }
     }
 
-    fn find_solidity_files(&self, root: &Path, exclude_patterns: &[String]) -> Result<Vec<PathBuf>> {
+    fn find_solidity_files(
+        &self,
+        root: &Path,
+        exclude_patterns: &[String],
+    ) -> Result<Vec<PathBuf>> {
         let mut files = Vec::new();
 
         for entry in WalkDir::new(root) {

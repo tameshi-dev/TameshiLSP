@@ -277,9 +277,15 @@ impl LLMScanManager {
                 options,
                 progress_token,
                 response_tx,
-            } => match self.discover_workspace_files(&root, &exclude_patterns).await {
+            } => match self
+                .discover_workspace_files(&root, &exclude_patterns)
+                .await
+            {
                 Ok(files) => {
-                    info!("LLM scan: Found {} files after applying exclude patterns", files.len());
+                    info!(
+                        "LLM scan: Found {} files after applying exclude patterns",
+                        files.len()
+                    );
                     let scope = ScanScope::Workspace { root, files };
                     self.queue_scan(scope, options, progress_token, response_tx)
                         .await;
@@ -560,7 +566,11 @@ impl LLMScanManager {
         }
     }
 
-    async fn discover_workspace_files(&self, root: &Path, exclude_patterns: &[String]) -> Result<Vec<std::path::PathBuf>> {
+    async fn discover_workspace_files(
+        &self,
+        root: &Path,
+        exclude_patterns: &[String],
+    ) -> Result<Vec<std::path::PathBuf>> {
         let mut files = Vec::new();
 
         if root.exists() {

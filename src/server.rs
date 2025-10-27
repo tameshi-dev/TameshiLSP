@@ -737,7 +737,10 @@ impl TameshiLspServer {
 
         debug!("Document opened: {}", params.text_document.uri);
 
-        if self.workspace_manager.should_exclude_file(&params.text_document.uri) {
+        if self
+            .workspace_manager
+            .should_exclude_file(&params.text_document.uri)
+        {
             return Ok(());
         }
 
@@ -1184,7 +1187,10 @@ impl TameshiLspServer {
         let options = self.parse_llm_scan_options(arguments.and_then(|args| args.first()));
 
         let exclude_patterns = self.workspace_manager.get_exclude_patterns().to_vec();
-        info!("LLM workspace scan using exclude patterns: {:?}", exclude_patterns);
+        info!(
+            "LLM workspace scan using exclude patterns: {:?}",
+            exclude_patterns
+        );
 
         let (response_tx, mut response_rx) = unbounded_channel();
 
