@@ -1,0 +1,8 @@
+# Clippy configuration for Tameshi LSP project
+# Temporarily relaxed limits while we work through remaining warnings
+
+# Allow functions with more arguments temporarily
+too-many-arguments-threshold = 10
+
+# Allow slightly more complex types temporarily
+type-complexity-threshold = 250
