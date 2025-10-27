@@ -1183,10 +1183,14 @@ impl TameshiLspServer {
 
         let options = self.parse_llm_scan_options(arguments.and_then(|args| args.first()));
 
+        let exclude_patterns = self.workspace_manager.get_exclude_patterns().to_vec();
+        info!("LLM workspace scan using exclude patterns: {:?}", exclude_patterns);
+
         let (response_tx, mut response_rx) = unbounded_channel();
 
         let scan_request = LLMScanRequest::ScanWorkspace {
             root: workspace_root.clone(),
+            exclude_patterns,
             options,
             progress_token: Some(progress_token.clone()),
             response_tx,

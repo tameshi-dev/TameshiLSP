@@ -90,6 +90,7 @@ pub enum LLMScanRequest {
     },
     ScanWorkspace {
         root: std::path::PathBuf,
+        exclude_patterns: Vec<String>,
         options: LLMScanOptions,
         progress_token: Option<String>,
         response_tx: mpsc::UnboundedSender<Result<ScanResult>>,
@@ -272,11 +273,13 @@ impl LLMScanManager {
 
             LLMScanRequest::ScanWorkspace {
                 root,
+                exclude_patterns,
                 options,
                 progress_token,
                 response_tx,
-            } => match self.discover_workspace_files(&root).await {
+            } => match self.discover_workspace_files(&root, &exclude_patterns).await {
                 Ok(files) => {
+                    info!("LLM scan: Found {} files after applying exclude patterns", files.len());
                     let scope = ScanScope::Workspace { root, files };
                     self.queue_scan(scope, options, progress_token, response_tx)
                         .await;
@@ -557,7 +560,7 @@ impl LLMScanManager {
         }
     }
 
-    async fn discover_workspace_files(&self, root: &Path) -> Result<Vec<std::path::PathBuf>> {
+    async fn discover_workspace_files(&self, root: &Path, exclude_patterns: &[String]) -> Result<Vec<std::path::PathBuf>> {
         let mut files = Vec::new();
 
         if root.exists() {
@@ -566,10 +569,15 @@ impl LLMScanManager {
             while let Some(entry) = entries.next_entry().await? {
                 let path = entry.path();
 
+                if self.matches_exclude_pattern(&path, exclude_patterns) {
+                    debug!("LLM scan: Excluding path: {:?}", path);
+                    continue;
+                }
+
                 if path.extension().and_then(|s| s.to_str()) == Some("sol") {
                     files.push(path);
                 } else if path.is_dir() {
-                    match Box::pin(self.discover_workspace_files(&path)).await {
+                    match Box::pin(self.discover_workspace_files(&path, exclude_patterns)).await {
                         Ok(sub_files) => files.extend(sub_files),
                         Err(_) => continue, // Skip directories we can't read
                     }
@@ -578,6 +586,33 @@ impl LLMScanManager {
         }
 
         Ok(files)
+    }
+
+    fn matches_exclude_pattern(&self, path: &Path, exclude_patterns: &[String]) -> bool {
+        let path_str = path.to_string_lossy();
+        for pattern in exclude_patterns {
+            if self.matches_glob_pattern(&path_str, pattern) {
+                return true;
+            }
+        }
+        false
+    }
+
+    fn matches_glob_pattern(&self, path: &str, pattern: &str) -> bool {
+        let regex_pattern = pattern
+            .replace(".", "\\.")
+            .replace("**", "###DOUBLE_STAR###")
+            .replace("*", "[^/]*")
+            .replace("###DOUBLE_STAR###", ".*")
+            .replace("?", ".");
+
+        let regex_pattern = format!("^{}$", regex_pattern);
+
+        if let Ok(regex) = regex::Regex::new(&regex_pattern) {
+            regex.is_match(path)
+        } else {
+            false
+        }
     }
 
     async fn cancel_operation(&self, token: &str) {

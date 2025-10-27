@@ -158,23 +158,25 @@ impl FindingsStore {
             self.auto_correlate
         );
 
-        if self.auto_correlate {
-            let mut findings_to_correlate: Vec<Finding> = self
+        if self.auto_correlate && !scan_result.findings.is_empty() {
+            let new_findings = scan_result.findings.clone();
+            let existing_findings: Vec<Finding> = self
                 .findings
                 .iter()
+                .filter(|entry| !new_findings.iter().any(|nf| nf.id == *entry.key()))
                 .map(|entry| entry.value().clone())
                 .collect();
 
             info!(
-                "Auto-correlate is enabled. Store has {} total findings",
-                findings_to_correlate.len()
+                "Auto-correlate is enabled. Correlating {} new findings against {} existing findings",
+                new_findings.len(),
+                existing_findings.len()
             );
 
-            if findings_to_correlate.len() > 1 {
-                info!(
-                    "Running correlation on {} findings from entire store",
-                    findings_to_correlate.len()
-                );
+            if !existing_findings.is_empty() {
+                let mut findings_to_correlate = new_findings.clone();
+                findings_to_correlate.extend(existing_findings);
+
                 match self
                     .correlation_service
                     .correlate_findings(&mut findings_to_correlate)
@@ -185,10 +187,10 @@ impl FindingsStore {
                             stats.duplicates, stats.augmentations, stats.conflicts
                         );
 
-                        for finding in findings_to_correlate {
+                        for finding in findings_to_correlate.iter().take(new_findings.len()) {
                             if let Some(metadata) = &finding.metadata {
                                 if !metadata.correlations.is_empty() {
-                                    self.findings.insert(finding.id, finding);
+                                    self.findings.insert(finding.id, finding.clone());
                                 }
                             }
                         }
