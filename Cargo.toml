@@ -1,6 +1,6 @@
 [package]
 name = "tameshi-lsp"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 
 [lib]
@@ -12,7 +12,7 @@ name = "tameshi-lsp"
 path = "src/main.rs"
 
 [dependencies]
-tameshi-scanners = { path = "../tameshi/crates/scanners", features = ["llm"] }
+tameshi-scanners = { version = "0.1.1", features = ["llm"] }
 thalir-core = "0.1.0"
 thalir-emit = "0.1.0"
 thalir-transform = "0.1.0"
