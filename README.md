@@ -1,10 +1,10 @@
 # Tameshi LSP Server
 
-[![Tests](https://github.com/warrengalyen/tameshi-lsp/actions/workflows/test.yml/badge.svg)](https://github.com/warrengalyen/tameshi-lsp/actions/workflows/test.yml)
-[![Release](https://img.shields.io/github/v/release/warrengalyen/tameshi-lsp?display_name=tag)](https://github.com/warrengalyen/tameshi-lsp/releases/latest)
-[![Version](https://img.shields.io/badge/version-0.1.0-blue)](https://github.com/warrengalyen/tameshi-lsp/releases)
+[![Tests](https://github.com/tameshi-dev/TameshiLSP/actions/workflows/test.yml/badge.svg)](https://github.com/tameshi-dev/TameshiLSP/actions/workflows/test.yml)
+[![Release](https://img.shields.io/github/v/release/tameshi-dev/TameshiLSP?display_name=tag)](https://github.com/tameshi-dev/TameshiLSP/releases/latest)
+[![Version](https://img.shields.io/badge/version-0.1.1-blue)](https://github.com/tameshi-dev/TameshiLSP/releases)
 
-Language Server Protocol implementation for [Tameshi](https://github.com/warrengalyen/tameshi) security analysis, providing real-time vulnerability detection for Solidity smart contracts.
+Language Server Protocol implementation for [Tameshi](https://github.com/tameshi-dev/Tameshi) security analysis, providing real-time vulnerability detection for Solidity smart contracts.
 
 ## Features
 
